@@ -8,7 +8,7 @@ fn main() -> ExitCode {
     let lesson = env::args().nth(1).unwrap_or_else(|| "all".to_owned());
 
     match lesson.as_str() {
-ple"all" => run_all(),
+        "all" => run_all(),
         "basics" => basics::run(),
         "ownership" => ownership::run(),
         "oop" => oop::run(),
