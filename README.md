@@ -4,6 +4,11 @@ A small, runnable Rust project that teaches core language features through code.
 It uses only the standard library, so there are no third-party dependencies to
 download or hide the fundamentals.
 
+No previous Rust knowledge is required. The source comments define technical
+words, explain punctuation, and describe why each example is useful. You do not
+need to memorize everything on the first reading: run one lesson, connect its
+printed output to the nearby code, and make one small change of your own.
+
 ## Start here
 
 Rust was installed with the official `rustup` tool while this project was created.
@@ -35,10 +40,48 @@ cargo doc --open          # build and open API documentation
 builds reuse results from the `target/` directory. For an optimized build, use
 `cargo run --release`.
 
+## How to read the comments
+
+Rust has three comment styles in this project:
+
+```rust
+// Explains the next line or small block of code.
+
+/// Documents the function, struct, enum, or trait immediately below it.
+/// Cargo includes this text when it builds API documentation.
+
+//! Documents the whole file or module. You will see this at the top of lessons.
+```
+
+Read the `//!` introduction first, run that lesson, and then follow the shorter
+comments from top to bottom. When a comment uses an unfamiliar word, it defines
+the word nearby or relates it to a familiar idea.
+
+## Tiny syntax guide
+
+| Syntax | Plain-language meaning |
+| --- | --- |
+| `let x = 5;` | Create an immutable variable named `x` |
+| `let mut x = 5;` | Create a variable that may change |
+| `fn name(...) -> Type` | Define a function and its returned type |
+| `&value` | Borrow a value for reading |
+| `&mut value` | Borrow a value for changing |
+| `Type::item` | Select an item belonging to a type or module |
+| `value.method()` | Call behavior using a value |
+| `Some(x)` / `None` | A value exists / no value exists |
+| `Ok(x)` / `Err(e)` | An operation succeeded / failed |
+| `match value { ... }` | Handle every possible shape of a value |
+| `<T>` | Use a generic placeholder type |
+| `|x| x * 2` | A small unnamed function called a closure |
+| `!` after a name | Call a macro, such as `println!` |
+
 ## Project map
 
 | File | Topics |
 | --- | --- |
+| `Cargo.toml` | Package name, Rust edition, and dependencies |
+| `Cargo.lock` | Exact package versions for repeatable builds |
+| `.gitignore` | Generated files Git should not store |
 | `src/main.rs` | Program entry point, command-line argument matching |
 | `src/basics.rs` | Variables, mutability, types, functions, expressions, loops, enums |
 | `src/ownership.rs` | Moves, copies, borrowing, slices, lifetimes |
@@ -52,6 +95,9 @@ builds reuse results from the `target/` directory. For an optimized build, use
 
 Each lesson contains unit tests near the code it checks. Rust normally keeps unit
 tests in the same file under `#[cfg(test)]`; they are omitted from regular builds.
+
+The `src` directory contains source code. Cargo creates the `target` directory for
+compiled output; you can safely delete `target` because Cargo can rebuild it.
 
 ## Rust's answer to classes and inheritance
 
@@ -110,8 +156,8 @@ thread-safety mistakes compile-time errors through the `Send` and `Sync` traits.
 ## Recommended learning order
 
 1. Run `cargo run -- basics`, then edit a printed value.
-2. Read and run `ownership`; deliberately uncomment an invalid second mutable
-   borrow and study the compiler message.
+2. Read and run `ownership`; find the commented "TRY IT" example, temporarily
+   uncomment it, and study the compiler's mutable-borrow message.
 3. Build a second struct implementing the `Person` trait in `oop`.
 4. Add a collection transformation using `iter`, `filter`, and `collect`.
 5. Add edge-case tests to an algorithm before changing its implementation.

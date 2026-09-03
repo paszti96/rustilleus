@@ -1,6 +1,13 @@
+# Cargo.toml is the project's "manifest": a small file that tells Cargo how to
+# build this package. Cargo is Rust's build tool and package manager.
 [package]
+# This package name is also the name used to import our library from main.rs.
 name = "rust_learning_lab"
+# Versions usually follow MAJOR.MINOR.PATCH. 0.1.0 means an early learning project.
 version = "0.1.0"
+# The edition selects a set of Rust language rules. It is not the compiler version.
 edition = "2024"
 
+# External libraries would be listed below. This section is intentionally empty
+# because every example uses only Rust's built-in standard library (`std`).
 [dependencies]
