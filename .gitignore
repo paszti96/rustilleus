@@ -1,3 +1,5 @@
-# Cargo places compiled programs and temporary build files in `target/`.
-# They can be large and can always be rebuilt, so Git should not store them.
 /target
+.env
+.DS_Store
+*.profraw
+coverage/

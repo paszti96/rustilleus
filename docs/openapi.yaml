@@ -1,0 +1,156 @@
+openapi: 3.1.0
+info:
+  title: Rustilleus Matching API
+  version: 0.1.0
+  description: Deterministic price-time-priority limit order matching service.
+servers:
+  - url: http://localhost:8080
+paths:
+  /health:
+    get:
+      operationId: health
+      responses:
+        "200":
+          description: Service is ready to accept requests.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /v1/orderbook:
+    get:
+      operationId: getOrderBook
+      parameters:
+        - name: depth
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: Aggregated price levels, best price first.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookSnapshot"
+  /v1/orders:
+    post:
+      operationId: submitOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewOrder"
+      responses:
+        "201":
+          description: Order was accepted and processed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecutionReport"
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Invalid" }
+  /v1/orders/{order_id}:
+    delete:
+      operationId: cancelOrder
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema: { type: integer, format: uint64, minimum: 1 }
+      responses:
+        "200":
+          description: Active order was cancelled.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [order_id, cancelled_quantity]
+                properties:
+                  order_id: { type: integer, format: uint64 }
+                  cancelled_quantity: { type: integer, format: uint64 }
+        "404":
+          description: Active order was not found.
+components:
+  schemas:
+    Health:
+      type: object
+      required: [status, service, version]
+      properties:
+        status: { type: string, const: ok }
+        service: { type: string, const: rustilleus }
+        version: { type: string }
+    NewOrder:
+      type: object
+      required: [order_id, side, price, quantity]
+      properties:
+        order_id: { type: integer, format: uint64, minimum: 1 }
+        side: { type: string, enum: [buy, sell] }
+        price: { type: integer, format: uint64, minimum: 1 }
+        quantity: { type: integer, format: uint64, minimum: 1 }
+        time_in_force: { type: string, enum: [gtc, ioc, fok], default: gtc }
+        post_only: { type: boolean, default: false }
+    Trade:
+      type: object
+      required: [trade_id, maker_order_id, taker_order_id, aggressor_side, price, quantity]
+      properties:
+        trade_id: { type: integer, format: uint64 }
+        maker_order_id: { type: integer, format: uint64 }
+        taker_order_id: { type: integer, format: uint64 }
+        aggressor_side: { type: string, enum: [buy, sell] }
+        price: { type: integer, format: uint64 }
+        quantity: { type: integer, format: uint64 }
+    ExecutionReport:
+      type: object
+      required: [order_id, status, original_quantity, filled_quantity, remaining_quantity, trades]
+      properties:
+        order_id: { type: integer, format: uint64 }
+        status:
+          type: string
+          enum: [filled, resting, partially_filled_resting, cancelled, partially_filled_cancelled]
+        original_quantity: { type: integer, format: uint64 }
+        filled_quantity: { type: integer, format: uint64 }
+        remaining_quantity: { type: integer, format: uint64 }
+        trades:
+          type: array
+          items: { $ref: "#/components/schemas/Trade" }
+    PriceLevel:
+      type: object
+      required: [price, total_quantity, order_count]
+      properties:
+        price: { type: integer, format: uint64 }
+        total_quantity: { type: integer, format: uint64 }
+        order_count: { type: integer }
+    BookSnapshot:
+      type: object
+      required: [symbol, sequence, active_order_count, trade_count, bids, asks]
+      properties:
+        symbol: { type: string }
+        sequence: { type: integer, format: uint64 }
+        active_order_count: { type: integer }
+        trade_count: { type: integer, format: uint64 }
+        bids:
+          type: array
+          items: { $ref: "#/components/schemas/PriceLevel" }
+        asks:
+          type: array
+          items: { $ref: "#/components/schemas/PriceLevel" }
+  responses:
+    Conflict:
+      description: Duplicate ID or post-only order would cross.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [code, message]
+            properties:
+              code: { type: string }
+              message: { type: string }
+    Invalid:
+      description: Request violates a domain validation rule.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [code, message]
+            properties:
+              code: { type: string }
+              message: { type: string }

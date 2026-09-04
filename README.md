@@ -1,184 +1,204 @@
-# Rust Learning Lab
+# Rustilleus
 
-A small, runnable Rust project that teaches core language features through code.
-It uses only the standard library, so there are no third-party dependencies to
-download or hide the fundamentals.
+[![CI](https://github.com/paszti96/rustilleus/actions/workflows/ci.yml/badge.svg)](https://github.com/paszti96/rustilleus/actions/workflows/ci.yml)
+[![Publish container](https://github.com/paszti96/rustilleus/actions/workflows/deploy.yml/badge.svg)](https://github.com/paszti96/rustilleus/actions/workflows/deploy.yml)
 
-No previous Rust knowledge is required. The source comments define technical
-words, explain punctuation, and describe why each example is useful. You do not
-need to memorize everything on the first reading: run one lesson, connect its
-printed output to the nearby code, and make one small change of your own.
+Rustilleus is a deterministic, production-oriented limit order matching service
+written in Rust. It demonstrates exchange-domain modeling, price-time priority,
+clean architecture, concurrency control, structured errors and observability,
+API design, automated tests, and container delivery.
 
-## Start here
+The earlier educational project remains available on the `tutorial` branch.
 
-Rust was installed with the official `rustup` tool while this project was created.
-Open a new terminal, then run:
+## What it supports
+
+- Buy and sell limit orders
+- Price priority, then FIFO time priority at each price
+- GTC (good-til-cancelled), IOC (immediate-or-cancel), and FOK (fill-or-kill)
+- Post-only orders that reject rather than remove liquidity
+- Partial fills across multiple price levels
+- Cancellation of active orders
+- Aggregated, depth-limited book snapshots
+- Duplicate order-ID protection for the process lifetime
+- Integer prices and quantities, avoiding floating-point money errors
+- Request IDs, body limits, request timeouts, panic containment, and tracing
+- Graceful shutdown on Ctrl+C or SIGTERM
+
+## Quick start
 
 ```bash
-cd /Users/paszti96/Documents/ChatGPT/Rust
 cargo run
 ```
 
-If an already-open terminal says `cargo: command not found`, load the new PATH once:
+The service listens on `http://localhost:8080` and manages `BTC-USD` by default.
+Open another terminal and check it:
 
 ```bash
-source "$HOME/.cargo/env"
+curl http://localhost:8080/health
 ```
 
-Useful commands:
+Add a resting sell order. Prices are integer ticks; for a currency with two
+decimal places, `10000` can represent `100.00`:
 
 ```bash
-cargo run -- help         # list lessons
-cargo run -- ownership    # run one lesson
-cargo test                # run all automated tests
-cargo fmt                 # format the source
-cargo clippy --all-targets --all-features  # catch common mistakes
-cargo doc --open          # build and open API documentation
+curl -i -X POST http://localhost:8080/v1/orders \
+  -H 'content-type: application/json' \
+  -d '{
+    "order_id": 1,
+    "side": "sell",
+    "price": 10000,
+    "quantity": 5,
+    "time_in_force": "gtc",
+    "post_only": false
+  }'
 ```
 
-`cargo run` compiles a debug build and runs it. The first run is slower; later
-builds reuse results from the `target/` directory. For an optimized build, use
-`cargo run --release`.
+Submit an aggressive buy that matches the resting sell:
 
-## How to read the comments
-
-Rust has three comment styles in this project:
-
-```rust
-// Explains the next line or small block of code.
-
-/// Documents the function, struct, enum, or trait immediately below it.
-/// Cargo includes this text when it builds API documentation.
-
-//! Documents the whole file or module. You will see this at the top of lessons.
+```bash
+curl -i -X POST http://localhost:8080/v1/orders \
+  -H 'content-type: application/json' \
+  -d '{
+    "order_id": 2,
+    "side": "buy",
+    "price": 10100,
+    "quantity": 3
+  }'
 ```
 
-Read the `//!` introduction first, run that lesson, and then follow the shorter
-comments from top to bottom. When a comment uses an unfamiliar word, it defines
-the word nearby or relates it to a familiar idea.
+Inspect or cancel:
 
-## Tiny syntax guide
+```bash
+curl 'http://localhost:8080/v1/orderbook?depth=20'
+curl -i -X DELETE http://localhost:8080/v1/orders/1
+```
 
-| Syntax | Plain-language meaning |
+## Matching semantics
+
+An incoming buy may trade with asks priced at or below its limit. An incoming
+sell may trade with bids priced at or above its limit. The best price is selected
+first; orders at that price execute in arrival order. Every trade uses the price
+of the older resting order (the maker), as a real exchange normally does.
+
+| Time in force | Behavior |
 | --- | --- |
-| `let x = 5;` | Create an immutable variable named `x` |
-| `let mut x = 5;` | Create a variable that may change |
-| `fn name(...) -> Type` | Define a function and its returned type |
-| `&value` | Borrow a value for reading |
-| `&mut value` | Borrow a value for changing |
-| `Type::item` | Select an item belonging to a type or module |
-| `value.method()` | Call behavior using a value |
-| `Some(x)` / `None` | A value exists / no value exists |
-| `Ok(x)` / `Err(e)` | An operation succeeded / failed |
-| `match value { ... }` | Handle every possible shape of a value |
-| `<T>` | Use a generic placeholder type |
-| `|x| x * 2` | A small unnamed function called a closure |
-| `!` after a name | Call a macro, such as `println!` |
+| `gtc` | Match immediately, then keep any remainder on the book |
+| `ioc` | Match immediately, then cancel any remainder |
+| `fok` | Fill the complete quantity immediately or execute nothing |
 
-## Project map
+A post-only order must be GTC. If it would trade immediately, the API returns
+`409 Conflict`, allowing a market maker to guarantee that it adds liquidity.
 
-| File | Topics |
-| --- | --- |
-| `Cargo.toml` | Package name, Rust edition, and dependencies |
-| `Cargo.lock` | Exact package versions for repeatable builds |
-| `.gitignore` | Generated files Git should not store |
-| `src/main.rs` | Program entry point, command-line argument matching |
-| `src/basics.rs` | Variables, mutability, types, functions, expressions, loops, enums |
-| `src/ownership.rs` | Moves, copies, borrowing, slices, lifetimes |
-| `src/oop.rs` | Structs, methods, encapsulation, traits, composition, polymorphism |
-| `src/collections.rs` | `Vec`, `VecDeque`, `HashMap`, `HashSet`, `BTreeMap`, `BinaryHeap`, generics |
-| `src/algorithms.rs` | Linear/binary search, insertion/merge sort, BFS, Fibonacci |
-| `src/patterns.rs` | Builder, Strategy, newtype, enum-based State patterns |
-| `src/errors.rs` | `Option`, `Result`, custom errors, `match`, the `?` operator |
-| `src/concurrency.rs` | Scoped threads, channels, `Arc`, `Mutex`, `Send`/`Sync` concepts |
-| `src/lib.rs` | Modules and library documentation |
+## API
 
-Each lesson contains unit tests near the code it checks. Rust normally keeps unit
-tests in the same file under `#[cfg(test)]`; they are omitted from regular builds.
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/health` | Readiness and version information |
+| `GET` | `/v1/orderbook?depth=20` | Aggregated best-first price levels |
+| `POST` | `/v1/orders` | Validate, match, and possibly rest an order |
+| `DELETE` | `/v1/orders/{order_id}` | Cancel an active resting order |
 
-The `src` directory contains source code. Cargo creates the `target` directory for
-compiled output; you can safely delete `target` because Cargo can rebuild it.
+The full contract is in [docs/openapi.yaml](docs/openapi.yaml). Errors are JSON
+objects with stable `code` and human-readable `message` fields.
 
-## Rust's answer to classes and inheritance
+## Architecture and design patterns
 
-Rust deliberately has no classes or implementation inheritance. It separates the
-ideas found in class-based languages:
+```text
+HTTP adapter → application facade → MatchingEngine port → order-book domain
+                         │
+                         └→ EventSink observer → structured tracing adapter
+```
 
-| Class-based idea | Rust tool |
-| --- | --- |
-| Object data | `struct` or `enum` |
-| Constructors and methods | `impl` block |
-| Interface/shared behavior | `trait` |
-| Reusing fields/implementation | composition and small helper types |
-| Runtime polymorphism | trait objects such as `Box<dyn Person>` |
-| Compile-time polymorphism | generics such as `fn f<T: Person>(value: T)` |
+The code uses ports and adapters, Facade, Command, Observer, Strategy/dependency
+inversion, and Newtype patterns. Rust does not have class inheritance; structs
+encapsulate state, `impl` blocks provide behavior, traits provide interfaces and
+polymorphism, and composition connects objects explicitly.
 
-This avoids fragile inheritance hierarchies. Read `src/oop.rs` while running
-`cargo run -- oop` to see each replacement in action.
+See [docs/architecture.md](docs/architecture.md) for invariants, complexity,
+concurrency decisions, and the path from this portfolio service to an exchange
+that could handle real money.
 
-## The concepts that matter most
+## Project layout
 
-### Ownership and borrowing
+```text
+src/
+├── domain/          Orders, trades, book data structures, matching rules
+├── application/     Commands, service facade, interfaces, domain events
+├── infrastructure/  Axum HTTP API, tracing, event adapter
+├── config.rs        Environment-based startup configuration
+├── lib.rs           Public library surface
+└── main.rs          Runtime composition and graceful shutdown
+tests/               Black-box matching scenarios through public APIs
+docs/                Architecture decisions and OpenAPI contract
+.github/             CI, container publishing, dependency updates
+```
 
-Every value has one owner. When the owner leaves scope, Rust calls `drop` and
-releases the resource. A move transfers ownership. `&T` temporarily borrows a
-value for reading; `&mut T` borrows it for writing. At a given time, Rust allows
-either many immutable references or one mutable reference. These checks prevent
-data races and dangling pointers at compile time.
+The domain layer does not import Axum or Tokio. That separation keeps the most
+important business rules deterministic, fast, and easy to test.
 
-### Enums, matching, `Option`, and `Result`
+## Configuration
 
-Enums can carry data. `Option<T>` is `Some(T)` or `None`, so missing values are
-explicit rather than null. `Result<T, E>` is `Ok(T)` or `Err(E)`, so recoverable
-errors are ordinary values. `match` forces every possibility to be handled; `?`
-is concise error propagation.
+| Variable | Default | Description |
+| --- | --- | --- |
+| `APP_HOST` | `0.0.0.0` | Interface on which the HTTP server listens |
+| `APP_PORT` | `8080` | HTTP port |
+| `BOOK_SYMBOL` | `BTC-USD` | Symbol managed by this engine instance |
+| `LOG_FORMAT` | `json` | Use `pretty` for human-readable local logs |
+| `RUST_LOG` | `rustilleus=info,tower_http=info` | Tracing filter |
 
-### Traits and generics
+Copy `.env.example` values into your shell or container environment as needed.
+The application intentionally does not read `.env` files by itself, keeping
+production secret/configuration injection explicit.
 
-A trait declares behavior a type can implement. Generics with trait bounds give
-fast static dispatch. `dyn Trait` gives runtime dispatch when different concrete
-types must share one collection. Prefer static dispatch until you need the
-flexibility of a trait object.
+## Quality checks
 
-### Iterators and closures
+```bash
+cargo fmt --all -- --check
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test --all-targets --all-features --locked
+RUSTDOCFLAGS='-D warnings' cargo doc --no-deps --locked
+```
 
-Iterators process sequences lazily. Methods such as `map`, `filter`, `find`,
-`fold`, and `collect` compose into expressive pipelines. Closures use forms such
-as `|x| x * 2` and capture surrounding values when needed.
+Tests cover validation, price priority, FIFO priority, multi-level fills, partial
+fills, IOC, FOK, post-only rejection, cancellation, duplicate IDs, snapshots,
+event publication, HTTP responses, and request IDs.
 
-### Memory and concurrency
+Run the deterministic matching throughput harness in optimized mode:
 
-Rust has no garbage collector. Ownership manages stack values, heap allocations,
-files, locks, and other resources through RAII: acquiring a value acquires its
-resource, and dropping it releases that resource. The same type system makes many
-thread-safety mistakes compile-time errors through the `Send` and `Sync` traits.
+```bash
+cargo run --release --example throughput
+```
 
-## Recommended learning order
+It rests 100,000 sell orders and then matches them with 100,000 buys, reporting
+elapsed time and orders per second. Treat the result as a local engineering signal,
+not a universal claim: hardware, compiler version, and build settings all matter.
 
-1. Run `cargo run -- basics`, then edit a printed value.
-2. Read and run `ownership`; find the commented "TRY IT" example, temporarily
-   uncomment it, and study the compiler's mutable-borrow message.
-3. Build a second struct implementing the `Person` trait in `oop`.
-4. Add a collection transformation using `iter`, `filter`, and `collect`.
-5. Add edge-case tests to an algorithm before changing its implementation.
-6. Extend `PositiveNumberError` with a new error variant.
-7. Run the concurrency lesson and change the number of worker threads.
+## Container and delivery
 
-The compiler is part of the learning experience. Its errors usually point to the
-ownership rule or missing type information and often suggest a correct fix.
+Build and run the same minimal, non-root container used by CI:
 
-## Small exercises
+```bash
+docker build -t rustilleus .
+docker run --rm -p 8080:8080 rustilleus
+```
 
-- Add `Direction::Up` and update its exhaustive `match`.
-- Add `Stack::len` and a test for it.
-- Implement depth-first graph traversal beside breadth-first traversal.
-- Add a `PickupShipping` strategy that always costs zero.
-- Make `ReportBuilder` reject reports with no sections.
-- Create `BookId` as another newtype and notice that it cannot be passed where a
-  `UserId` is required, even though both contain `u64`.
+GitHub Actions provides three pipelines:
 
-## Where to go next
+- `ci.yml` formats, lints, tests, builds docs, and verifies the production image
+  for pushes and pull requests.
+- `deploy.yml` publishes provenance-attested, SBOM-enabled images to GitHub
+  Container Registry on every push to `main`, on `v*` tags, or by manual dispatch.
+- `security.yml` checks dependencies against the RustSec advisory database when
+  dependencies change and every Monday.
 
-After this project, work through [The Rust Programming Language](https://doc.rust-lang.org/book/),
-then solve exercises in [Rustlings](https://github.com/rust-lang/rustlings). The
-standard library documentation is available at [doc.rust-lang.org/std](https://doc.rust-lang.org/std/).
+Published images use tags such as `ghcr.io/paszti96/rustilleus:main` and a commit
+SHA tag. Dependabot checks Cargo, Actions, and Docker dependencies weekly.
+
+## Scope and production trade-offs
+
+This service makes its limits explicit. State is in memory and one process owns
+one symbol. That is a sound core for demonstrations, simulations, and further
+engineering, but it is not yet suitable for real funds. A real venue additionally
+needs durable command journaling and replay, authentication, pre-trade risk checks,
+rate limiting, market-data feeds, audit retention, multi-symbol partitioning,
+operational metrics, and extensive performance and failure testing.
