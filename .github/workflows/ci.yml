@@ -17,7 +17,7 @@ jobs:
     name: Minimum supported Rust 1.85
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@1.85.0
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --all-targets --all-features --locked
@@ -26,7 +26,7 @@ jobs:
     name: Format, lint, test, and document
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@1.98.1
         with:
           components: rustfmt, clippy
@@ -40,7 +40,7 @@ jobs:
     name: Build production container
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
         with:
