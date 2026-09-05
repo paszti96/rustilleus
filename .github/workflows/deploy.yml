@@ -61,7 +61,7 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: mode=max
           sbom: true
-      - uses: actions/attest-build-provenance@v2
+      - uses: actions/attest-build-provenance@v4
         if: github.event.repository.visibility == 'public'
         with:
           subject-name: ghcr.io/${{ github.repository }}
